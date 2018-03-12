@@ -107,7 +107,7 @@ var (
 	argPub     = flag.String("pub", "30303", "public key for asymmetric encryption")
 	argDBPath  = flag.String("dbpath", "./", "path to the server's DB directory")
 	argIDFile  = flag.String("idfile", "nodeid", "file name with node id (private key)")
-	argEnode   = flag.String("boot", "enode://beaaf8080d4e807ccc25b6c5cc0fbe751259ae08b1d9934fea7bc2fd29a33f92@47.100.76.141:30304", "bootstrap node you want to connect to (e.g. enode://e454......08d50@52.176.211.200:16428)")
+	argEnode   = flag.String("boot", "enode://b883709ef9293ac0a7dd1ceff02518bb638d0c311b173075ee1bb36af9b75f061dd37ce757d62a537f584305ff75272ce431b03a05ef3eadc8fa74660787257a@47.100.76.141:30304", "bootstrap node you want to connect to (e.g. enode://e454......08d50@52.176.211.200:16428)")
 	argTopic   = flag.String("topic", "70a4beef", "topic in hexadecimal format (e.g. 70a4beef)")
 	argSaveDir = flag.String("savedir", "./", "directory where all incoming messages will be saved as files")
 )
