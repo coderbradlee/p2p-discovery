@@ -90,7 +90,7 @@ var (
 	mailServerMode = flag.Bool("mailserver", false, "mail server mode: delivers expired messages on demand")
 	requestMail    = flag.Bool("mailclient", false, "request expired messages from the bootstrap server")
 	asymmetricMode = flag.Bool("asym", false, "use asymmetric encryption")
-	generateKey    = flag.Bool("generatekey", true, "generate and show the private key")
+	generateKey    = flag.Bool("generatekey", false, "generate and show the private key")
 	fileExMode     = flag.Bool("fileexchange", false, "file exchange mode")
 	fileReader     = flag.Bool("filereader", false, "load and decrypt messages saved as files, display as plain text")
 	testMode       = flag.Bool("test", false, "use of predefined parameters for diagnostics (password, etc.)")
