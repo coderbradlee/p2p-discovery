@@ -1,4 +1,4 @@
 GO=go
-default: .
+default: ./
 seeker:
-	${GO} build -tags nocgo -o seeker
+	${GO} build default -tags nocgo -o seeker
