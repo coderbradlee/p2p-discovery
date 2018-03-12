@@ -11,7 +11,7 @@ type log struct{
 	Dir string `json:"dir"`
 	Name string `json:"name"`
 	Console bool `json:"console"`
-	Num int64 `json:"num"`
+	Num int32 `json:"num"`
 	Size int64 `json:"size"`
 	Level string `json:"level"`
 }
