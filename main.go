@@ -2,7 +2,7 @@ package main
 
 import (
 	"./logger"
-	"./utils"
+	util"./utils"
 	"bufio"
 	"crypto/ecdsa"
 	crand "crypto/rand"
@@ -31,7 +31,7 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
-var cfg *utils.Config
+var cfg *util.Config
 
 func log_init() {
 	logger.SetConsole(cfg.Log.Console)
@@ -45,9 +45,9 @@ func log_init() {
 	}
 }
 func init() {
-	cfg = &utils.Config{}
+	cfg = &util.Config{}
 
-	if !utils.LoadConfig("seeker.toml", cfg) {
+	if !util.LoadConfig("seeker.toml", cfg) {
 		return
 	}
 	log_init()
