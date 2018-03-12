@@ -104,7 +104,7 @@ var (
 	argServerPoW = flag.Float64("mspow", whisper.DefaultMinimumPoW, "PoW requirement for Mail Server request")
 
 	argIP      = flag.String("ip", "0.0.0.0:30303", "IP address and port of this node (e.g. 127.0.0.1:30303)")
-	argPub     = flag.String("pub", "30303", "public key for asymmetric encryption")
+	argPub     = flag.String("pub", "", "public key for asymmetric encryption")
 	argDBPath  = flag.String("dbpath", "./", "path to the server's DB directory")
 	argIDFile  = flag.String("idfile", "nodeprivate", "file name with node id (private key)")
 	argEnode   = flag.String("boot", "enode://b883709ef9293ac0a7dd1ceff02518bb638d0c311b173075ee1bb36af9b75f061dd37ce757d62a537f584305ff75272ce431b03a05ef3eadc8fa74660787257a@47.100.76.141:30304", "bootstrap node you want to connect to (e.g. enode://e454......08d50@52.176.211.200:16428)")
