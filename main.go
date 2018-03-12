@@ -2,7 +2,7 @@ package main
 
 import (
 	"./logger"
-	util"./utils"
+	util "./utils"
 	"bufio"
 	"crypto/ecdsa"
 	crand "crypto/rand"
@@ -53,8 +53,10 @@ func init() {
 	log_init()
 	initialize()
 }
+
 const quitCommand = "~Q"
 const entropySize = 32
+
 // singletons
 var (
 	server     *p2p.Server
@@ -105,8 +107,8 @@ var (
 	argPub     = flag.String("pub", "30303", "public key for asymmetric encryption")
 	argDBPath  = flag.String("dbpath", "./", "path to the server's DB directory")
 	argIDFile  = flag.String("idfile", "nodeid", "file name with node id (private key)")
-	argEnode   = flag.String("boot", "", "bootstrap node you want to connect to (e.g. enode://e454......08d50@52.176.211.200:16428)")
-	argTopic   = flag.String("topic", "", "topic in hexadecimal format (e.g. 70a4beef)")
+	argEnode   = flag.String("boot", "enode://beaaf8080d4e807ccc25b6c5cc0fbe751259ae08b1d9934fea7bc2fd29a33f92@47.100.76.141:30304", "bootstrap node you want to connect to (e.g. enode://e454......08d50@52.176.211.200:16428)")
+	argTopic   = flag.String("topic", "70a4beef", "topic in hexadecimal format (e.g. 70a4beef)")
 	argSaveDir = flag.String("savedir", "./", "directory where all incoming messages will be saved as files")
 )
 
