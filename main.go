@@ -22,7 +22,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/console"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
+	// "github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/p2p/nat"
@@ -31,21 +31,21 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
-var cfg *config.Config
+var cfg *utils.Config
 
 func log_init() {
 	logger.SetConsole(cfg.Log.Console)
 	logger.SetRollingFile(cfg.Log.Dir, cfg.Log.Name, cfg.Log.Num, cfg.Log.Size, logger.KB)
 	//ALL，DEBUG，INFO，WARN，ERROR，FATAL，OFF
 	logger.SetLevel(logger.ERROR)
-	if configuration.Log.Level == "info" {
+	if cfg.Log.Level == "info" {
 		logger.SetLevel(logger.INFO)
-	} else if configuration.Log.Level == "error" {
+	} else if cfg.Log.Level == "error" {
 		logger.SetLevel(logger.ERROR)
 	}
 }
 func init() {
-	cfg = &config.Config{}
+	cfg = &utils.Config{}
 
 	if !utils.LoadConfig("seeker.toml", cfg) {
 		return
