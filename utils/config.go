@@ -1,8 +1,9 @@
 package utils
 
 import (
+	"fmt"
 	"github.com/BurntSushi/toml"
-	"log"
+	// "log"
 	"os"
 	"path/filepath"
 )
@@ -31,18 +32,18 @@ func LoadConfig(configFileName string, cfg interface{}) bool {
 
 	configFileName, err = filepath.Abs(configFileName)
 	if err != nil {
-		log.Fatal("LoadConfig", "filepath.Abs err", err)
+		fmt.Printf("LoadConfig", "filepath.Abs err", err)
 		return false
 	}
 	configFile, err := os.Open(configFileName)
 	if err != nil {
-		log.Fatal("LoadConfig", "os.Open File error: ", err.Error())
+		fmt.Printf("LoadConfig", "os.Open File error: ", err.Error())
 		return false
 	}
 	defer configFile.Close()
 
 	if _, err = toml.DecodeReader(configFile, cfg); err != nil {
-		log.Fatal("LoadConfig", "toml.DecodeReader error: ", err.Error())
+		fmt.Printf("LoadConfig", "toml.DecodeReader error: ", err.Error())
 		return false
 	}
 
