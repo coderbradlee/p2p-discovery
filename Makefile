@@ -1,4 +1,4 @@
 GO=go
-default: build/seeker
-build/caster:
-	${GO} build -tags nocgo -o main seeker
+default: .
+seeker:
+	${GO} build -tags nocgo -o seeker
