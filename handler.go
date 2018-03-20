@@ -98,7 +98,7 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
 // with the ethereum network.
-func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, networkId uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database) (*ProtocolManager, error) {
+func NewProtocolManagerbak(config *params.ChainConfig, mode downloader.SyncMode, networkId uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		networkId:   networkId,
@@ -180,7 +180,88 @@ func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, ne
 
 	return manager, nil
 }
+func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, networkId uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database) (*ProtocolManager, error) {
+	// Create the protocol manager with the base fields
+	manager := &ProtocolManager{
+		networkId:   networkId,
+		eventMux:    mux,
+		txpool:      txpool,
+		blockchain:  blockchain,
+		chainconfig: config,
+		peers:       newPeerSet(),
+		newPeerCh:   make(chan *peer),
+		noMorePeers: make(chan struct{}),
+		txsyncCh:    make(chan *txsync),
+		quitSync:    make(chan struct{}),
+	}
+	// Figure out whether to allow fast sync or not
+	if mode == downloader.FastSync && blockchain.CurrentBlock().NumberU64() > 0 {
+		log.Warn("Blockchain not empty, fast sync disabled")
+		mode = downloader.FullSync
+	}
+	if mode == downloader.FastSync {
+		manager.fastSync = uint32(1)
+	}
+	// Initiate a sub-protocol for every implemented version we can handle
+	manager.SubProtocols = make([]p2p.Protocol, 0, len(ProtocolVersions))
+	for i, version := range ProtocolVersions {
+		// Skip protocol version if incompatible with the mode of operation
+		if mode == downloader.FastSync && version < eth63 {
+			continue
+		}
+		// Compatible; initialise the sub-protocol
+		version := version // Closure for the run
+		manager.SubProtocols = append(manager.SubProtocols, p2p.Protocol{
+			Name:    ProtocolName,
+			Version: version,
+			Length:  ProtocolLengths[i],
+			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
+				peer := manager.newPeer(int(version), p, rw)
+				select {
+				case manager.newPeerCh <- peer:
+					manager.wg.Add(1)
+					defer manager.wg.Done()
+					return manager.handlenewblockmsg(peer)
+				case <-manager.quitSync:
+					return p2p.DiscQuitting
+				}
+			},
+			NodeInfo: func() interface{} {
+				return manager.NodeInfo()
+			},
+			PeerInfo: func(id discover.NodeID) interface{} {
+				if p := manager.peers.Peer(fmt.Sprintf("%x", id[:8])); p != nil {
+					return p.Info()
+				}
+				return nil
+			},
+		})
+	}
+	if len(manager.SubProtocols) == 0 {
+		return nil, errIncompatibleConfig
+	}
+	// Construct the different synchronisation mechanisms
+	manager.downloader = downloader.New(mode, chaindb, manager.eventMux, blockchain, nil, manager.removePeer)
 
+	validator := func(header *types.Header) error {
+		return engine.VerifyHeader(blockchain, header, true)
+	}
+	heighter := func() uint64 {
+		return blockchain.CurrentBlock().NumberU64()
+	}
+	inserter := func(blocks types.Blocks) (int, error) {
+		// If fast sync is running, deny importing weird blocks
+		if atomic.LoadUint32(&manager.fastSync) == 1 {
+			log.Warn("Discarded bad propagated block", "number", blocks[0].Number(), "hash", blocks[0].Hash())
+			return 0, nil
+		}
+		atomic.StoreUint32(&manager.acceptTxs, 1) // Mark initial sync done on any fetcher import
+		return manager.blockchain.InsertChain(blocks)
+	}
+	manager.fetcher = fetcher.New(blockchain.GetBlockByHash, validator, manager.BroadcastBlock, heighter, inserter, manager.removePeer)
+
+	return manager, nil
+}
 func (pm *ProtocolManager) removePeer(id string) {
 	// Short circuit if the peer was already removed
 	peer := pm.peers.Peer(id)
@@ -307,6 +388,70 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	// main loop. handle incoming messages.
 	for {
 		if err := pm.handleMsg(p); err != nil {
+			p.Log().Debug("Ethereum message handling failed", "err", err)
+			return err
+		}
+	}
+}
+func (pm *ProtocolManager) handlenewblockmsg(p *peer) error {
+	// Ignore maxPeers if this is a trusted peer
+	if pm.peers.Len() >= pm.maxPeers && !p.Peer.Info().Network.Trusted {
+		return p2p.DiscTooManyPeers
+	}
+	p.Log().Debug("Ethereum peer connected", "name", p.Name())
+
+	// Execute the Ethereum handshake
+	var (
+		genesis = pm.blockchain.Genesis()
+		head    = pm.blockchain.CurrentHeader()
+		hash    = head.Hash()
+		number  = head.Number.Uint64()
+		td      = pm.blockchain.GetTd(hash, number)
+	)
+	if err := p.Handshake(pm.networkId, td, hash, genesis.Hash()); err != nil {
+		p.Log().Debug("Ethereum handshake failed", "err", err)
+		return err
+	}
+	if rw, ok := p.rw.(*meteredMsgReadWriter); ok {
+		rw.Init(p.version)
+	}
+	// Register the peer locally
+	if err := pm.peers.Register(p); err != nil {
+		p.Log().Error("Ethereum peer registration failed", "err", err)
+		return err
+	}
+	defer pm.removePeer(p.id)
+
+	// Register the peer in the downloader. If the downloader considers it banned, we disconnect
+	if err := pm.downloader.RegisterPeer(p.id, p.version, p); err != nil {
+		return err
+	}
+	// Propagate existing transactions. new transactions appearing
+	// after this will be sent via broadcasts.
+	pm.syncTransactions(p)
+
+	// If we're DAO hard-fork aware, validate any remote peer with regard to the hard-fork
+	if daoBlock := pm.chainconfig.DAOForkBlock; daoBlock != nil {
+		// Request the peer's DAO fork header for extra-data validation
+		if err := p.RequestHeadersByNumber(daoBlock.Uint64(), 1, 0, false); err != nil {
+			return err
+		}
+		// Start a timer to disconnect if the peer doesn't reply in time
+		p.forkDrop = time.AfterFunc(daoChallengeTimeout, func() {
+			p.Log().Debug("Timed out DAO fork-check, dropping")
+			pm.removePeer(p.id)
+		})
+		// Make sure it's cleaned up if the peer dies off
+		defer func() {
+			if p.forkDrop != nil {
+				p.forkDrop.Stop()
+				p.forkDrop = nil
+			}
+		}()
+	}
+	// main loop. handle incoming messages.
+	for {
+		if err := pm.handleNewBlockMsg(p); err != nil {
 			p.Log().Debug("Ethereum message handling failed", "err", err)
 			return err
 		}
@@ -673,6 +818,37 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 		pm.txpool.AddRemotes(txs)
 
+	default:
+		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
+	}
+	return nil
+}
+func (pm *ProtocolManager) handleNewBlockMsg(p *peer) error {
+	// Read the next message from the remote peer, and ensure it's fully consumed
+	msg, err := p.rw.ReadMsg()
+	if err != nil {
+		return err
+	}
+	if msg.Size > ProtocolMaxMsgSize {
+		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, ProtocolMaxMsgSize)
+	}
+	defer msg.Discard()
+
+	// Handle the message depending on its contents
+	switch {
+	case msg.Code == NewBlockMsg:
+		// Retrieve and decode the propagated block
+		var request newBlockData
+		if err := msg.Decode(&request); err != nil {
+			return errResp(ErrDecode, "%v: %v", msg, err)
+		}
+		request.Block.ReceivedAt = msg.ReceivedAt
+		request.Block.ReceivedFrom = p
+
+		// Mark the peer as owning the block and schedule it for import
+		p.MarkBlock(request.Block.Hash())
+		pm.fetcher.Enqueue(p.id, request.Block)
+		fmt.Println("an new block from :", p)
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}

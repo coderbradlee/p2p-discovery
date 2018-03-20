@@ -164,10 +164,10 @@ func (p *peer) SendBlockHeaders(headers []*types.Header) error {
 	return p2p.Send(p.rw, BlockHeadersMsg, headers)
 }
 
-type blockBody struct {
-	Transactions []*types.Transaction // Transactions contained within a block
-	Uncles       []*types.Header      // Uncles contained within a block
-}
+// type blockBody struct {
+// 	Transactions []*types.Transaction // Transactions contained within a block
+// 	Uncles       []*types.Header      // Uncles contained within a block
+// }
 
 // SendBlockBodies sends a batch of block contents to the remote peer.
 func (p *peer) SendBlockBodies(bodies []*blockBody) error {
@@ -268,25 +268,25 @@ func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis 
 	return nil
 }
 
-type statusData struct {
-	ProtocolVersion uint32
-	NetworkId       uint64
-	TD              *big.Int
-	CurrentBlock    common.Hash
-	GenesisBlock    common.Hash
-}
-type getBlockHeadersData struct {
-	Origin  hashOrNumber // Block from which to retrieve headers
-	Amount  uint64       // Maximum number of headers to retrieve
-	Skip    uint64       // Blocks to skip between consecutive headers
-	Reverse bool         // Query direction (false = rising towards latest, true = falling towards genesis)
-}
+// type statusData struct {
+// 	ProtocolVersion uint32
+// 	NetworkId       uint64
+// 	TD              *big.Int
+// 	CurrentBlock    common.Hash
+// 	GenesisBlock    common.Hash
+// }
+// type getBlockHeadersData struct {
+// 	Origin  hashOrNumber // Block from which to retrieve headers
+// 	Amount  uint64       // Maximum number of headers to retrieve
+// 	Skip    uint64       // Blocks to skip between consecutive headers
+// 	Reverse bool         // Query direction (false = rising towards latest, true = falling towards genesis)
+// }
 
-// hashOrNumber is a combined field for specifying an origin block.
-type hashOrNumber struct {
-	Hash   common.Hash // Block hash from which to retrieve headers (excludes Number)
-	Number uint64      // Block hash from which to retrieve headers (excludes Hash)
-}
+// // hashOrNumber is a combined field for specifying an origin block.
+// type hashOrNumber struct {
+// 	Hash   common.Hash // Block hash from which to retrieve headers (excludes Number)
+// 	Number uint64      // Block hash from which to retrieve headers (excludes Hash)
+// }
 
 func (p *peer) readStatus(network uint64, status *statusData, genesis common.Hash) (err error) {
 	msg, err := p.rw.ReadMsg()
