@@ -120,12 +120,17 @@ func test() {
 	// }
 }
 func test2() {
+	// glogger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
+	// glogger.Verbosity(log.Lvl(*verbosity))
+	// glogger.Vmodule(*vmodule)
+	// log.Root().SetHandler(glogger)
+
 	nodeKey, err := crypto.GenerateKey()
 	if err != nil {
 		fmt.Printf("could not generate key: %v\n", err)
 		return
 	}
-
+	fmt.Println("nodeKey:", nodeKey)
 	addr, err := net.ResolveUDPAddr("udp", "0.0.0.0:30301")
 	if err != nil {
 		fmt.Printf("-ResolveUDPAddr: %v", err)
@@ -135,6 +140,7 @@ func test2() {
 		fmt.Printf("-ListenUDP: %v", err)
 	}
 	realaddr := conn.LocalAddr().(*net.UDPAddr)
+	fmt.Println("realaddr:", realaddr)
 	cfg := discover.Config{
 		PrivateKey:   nodeKey,
 		AnnounceAddr: realaddr}
